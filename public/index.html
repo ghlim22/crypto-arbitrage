@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+	<meta charset="UTF-8">
+	<title>Arbitrage Graph</title>
+	<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+	<script src="https://unpkg.com/cytoscape@3.25.0/dist/cytoscape.min.js"></script>
+	<style>
+		body {
+			font-family: sans-serif;
+			background: #0f172a;
+			color: #e2e8f0;
+			margin: 0;
+		}
+
+		#graph {
+			width: 100vw;
+			height: 100vh;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>BTC to USDT</h1>
+	<div id="graph"></div>
+	<script>
+		const socket = io();
+
+		function getColorByPercent(percent) {
+			if (percent < 0.25) return '#b57b7b';
+			if (percent < 0.5) return '#c95151';
+			if (percent < 1.0) return '#e63535';
+			return '#f50505';
+		}
+
+		const cy = cytoscape({
+			container: document.getElementById('graph'),
+			style: [
+				{
+					selector: 'node',
+					style: {
+						'label': 'data(label)',
+						'background-color': ele => ele.data('type') === 'ask' ? '#f87171' : '#60a5fa',
+						'color': '#fff',
+						'text-valign': 'center',
+						'text-outline-width': 1,
+						'text-outline-color': '#0f172a'
+					}
+				},
+				{
+					selector: 'edge',
+					style: {
+						'label': 'data(label)',
+						'color': '#ffffff',
+						'width': 2,
+						'line-color': '#a3e635',
+						'target-arrow-color': '#a3e635',
+						'target-arrow-shape': 'triangle'
+					}
+				},
+				{
+					selector: '.highlighted',
+					style: {
+						'line-color': '#facc15',
+						'target-arrow-color': '#facc15',
+						'width': 5,
+						'opacity': 1
+					}
+				},
+				{
+					selector: '.highlight-node',
+					style: {
+						'border-width': 4,
+						'border-color': '#facc15',
+						'shadow-blur': 10,
+						'shadow-color': '#fde047'
+					}
+				}
+			],
+			layout: { name: 'circle' }
+		});
+
+		socket.on('graph', (graph) => {
+			cy.elements().remove();
+			cy.add([
+				...graph.nodes.map(n => ({ data: n })),
+				...graph.edges.map(e => ({
+					data: {
+						id: e.from + e.to,
+						source: e.from,
+						target: e.to,
+						label: e.label,
+						color: getColorByPercent(parseFloat(e.percent || 0))
+					}
+				}))
+			]);
+
+			cy.edges().forEach(edge => {
+				edge.style('line-color', edge.data('color'));
+				edge.style('target-arrow-color', edge.data('color'));
+			});
+
+			cy.layout({ name: 'circle' }).run();
+		});
+
+
+
+
+		socket.on('best_arbitrage', (best) => {
+			console.log('🔥 Best Arbitrage Opportunity:', best);
+
+			// 모든 강조 제거
+			cy.elements().removeClass('highlighted');
+			cy.elements().removeClass('highlight-node');
+
+			const buyNode = `${best.buyExchange}_ask`;
+			const sellNode = `${best.sellExchange}_bid`;
+			const edgeId = buyNode + sellNode;
+
+			const edge = cy.getElementById(edgeId);
+			if (edge) {
+				edge.addClass('highlighted');
+			}
+
+			cy.getElementById(edgeId).addClass('highlighted');
+			cy.getElementById(buyNode).addClass('highlight-node');
+			cy.getElementById(sellNode).addClass('highlight-node');
+		});
+	</script>
+</body>
+
+</html>

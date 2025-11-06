@@ -2,7 +2,7 @@
 const WebSocket = require("ws");
 const { v4 : uuidv4 } = require("uuid");
 
-// -- Read data from Bithumb
+// -- Bithumb
 
 const BITHUMB_WS_URL = "wss://ws-api.bithumb.com/websocket/v1";
 const bithumbSock = new WebSocket(BITHUMB_WS_URL);
@@ -64,14 +64,6 @@ upbitSock.on("message", (msg) => {
 	}
 });
 
-upbitSock.on("error", (err) => {
-	console.error("error: ", err);
-});
-
-upbitSock.on("close", () => {
-	console.log("closed!");
-});
-
 function renderConsole() {
 	if (!bithumbPrice || !upbitPrice) {
 		return;
@@ -91,5 +83,7 @@ function renderConsole() {
 
 [bithumbSock, upbitSock].forEach((s)=>{
 	s.on("error", err => console.error("socket error: ", err));
-	s.on("close", () => console.log("websocket connection closed."));
+	s.on("close", () => {
+		console.log("websocket connection closed.");
+	});
 });
